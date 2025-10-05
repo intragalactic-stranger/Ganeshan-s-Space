@@ -11,13 +11,30 @@ import { NextRequest } from "next/server";
 interface GeminiContentPart { text: string }
 interface GeminiContent { role: string; parts: GeminiContentPart[] }
 
-export const runtime = 'edge'; // low-latency; switch to 'nodejs' if using unsupported APIs
+// Use nodejs runtime for broader compatibility on hosting platforms (e.g., AWS Amplify) and
+// reliable access to environment variables. Edge was previously used for lower latency, but
+// missing env vars on edge often caused 500s in some deployments.
+export const runtime = 'nodejs';
+
+// Optional: ensure this route is always dynamic (never statically optimized)
+export const dynamic = 'force-dynamic';
+
+interface ApiErrorBody {
+  error: string;
+  code: string;
+  details?: any;
+  upstreamStatus?: number;
+}
+
+function jsonResponse(body: any, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
 
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'Server missing GEMINI_API_KEY' }), { status: 500 });
+      return jsonResponse(<ApiErrorBody>{ error: 'Missing required server secret', code: 'ENV_MISSING_GEMINI_API_KEY' }, 500);
     }
 
     const model = process.env.NEXT_PUBLIC_GEMINI_MODEL || 'gemini-1.5-flash-002';
@@ -30,9 +47,10 @@ export async function POST(req: NextRequest) {
     const systemPrompt = rawSystem && rawSystem.length > 0 ? rawSystem : undefined;
 
     const body = await req.json().catch(() => ({}));
-    const userMessage: string = (body.message || '').toString().slice(0, 4000);
-    if (!userMessage) {
-      return new Response(JSON.stringify({ error: 'Empty message' }), { status: 400 });
+    const rawMsg = (body.message ?? '').toString();
+    const userMessage: string = rawMsg.slice(0, 4000);
+    if (!userMessage.trim()) {
+      return jsonResponse(<ApiErrorBody>{ error: 'Message is required', code: 'EMPTY_MESSAGE' }, 400);
     }
 
     // Build initial request with systemInstruction (preferred method)
@@ -47,41 +65,58 @@ export async function POST(req: NextRequest) {
 
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${apiKey}`;
 
-    let geminiRes = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody)
-    });
+    // Basic timeout wrapper (Abort after 25s)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+
+    let geminiRes: Response;
+    try {
+      geminiRes = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal
+      });
+    } catch (err: any) {
+      clearTimeout(timeout);
+      const aborted = err?.name === 'AbortError';
+      console.error('[chat] upstream fetch failed', { aborted, message: err?.message });
+      return jsonResponse(<ApiErrorBody>{ error: 'Upstream request failed', code: aborted ? 'UPSTREAM_TIMEOUT' : 'UPSTREAM_FETCH_ERROR', details: aborted ? 'Timed out after 25s' : err?.message }, 502);
+    }
+    clearTimeout(timeout);
 
     // Fallback: if systemInstruction not recognized (older model variant) retry by injecting as first pseudo-message
-    if (!geminiRes.ok && geminiRes.status === 400 && systemPrompt) {
+    if (!geminiRes.ok) {
       const errTxt = await geminiRes.text();
-      if (/systemInstruction/i.test(errTxt)) {
+      if (geminiRes.status === 400 && systemPrompt && /systemInstruction/i.test(errTxt)) {
+        // Retry fallback strategy
         const fallbackContents: GeminiContent[] = [
           { role: 'user', parts: [{ text: systemPrompt }] },
           { role: 'user', parts: [{ text: userMessage }] }
         ];
-        geminiRes = await fetch(endpoint, {
+        const fallbackRes = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents: fallbackContents })
         });
+        if (!fallbackRes.ok) {
+          const fbErrTxt = await fallbackRes.text();
+            console.error('[chat] upstream fallback failed', { status: fallbackRes.status, body: fbErrTxt.slice(0,500) });
+            return jsonResponse(<ApiErrorBody>{ error: 'Upstream model error (fallback)', code: 'UPSTREAM_FALLBACK_ERROR', upstreamStatus: fallbackRes.status, details: fbErrTxt.slice(0, 500) }, 502);
+        }
+        geminiRes = fallbackRes; // proceed below with success path
       } else {
-        // reuse error text below if other issue
-        return new Response(JSON.stringify({ error: 'Gemini error', status: geminiRes.status, body: errTxt.slice(0, 500) }), { status: 502 });
+        console.error('[chat] upstream error', { status: geminiRes.status, body: errTxt.slice(0,500) });
+        return jsonResponse(<ApiErrorBody>{ error: 'Upstream model error', code: 'UPSTREAM_ERROR', upstreamStatus: geminiRes.status, details: errTxt.slice(0, 500) }, 502);
       }
-    }
-
-    if (!geminiRes.ok) {
-      const errTxt = await geminiRes.text();
-      return new Response(JSON.stringify({ error: 'Gemini error', status: geminiRes.status, body: errTxt.slice(0, 500) }), { status: 502 });
     }
 
     const data = await geminiRes.json();
     const reply = data?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text).filter(Boolean).join('\n') || '(no content)';
 
-    return new Response(JSON.stringify({ reply, usedSystemPrompt: Boolean(systemPrompt) }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return jsonResponse({ reply, usedSystemPrompt: Boolean(systemPrompt) });
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: 'Unhandled server error', message: e?.message }), { status: 500 });
+    console.error('[chat] unhandled server error', e);
+    return jsonResponse(<ApiErrorBody>{ error: 'Unhandled server error', code: 'UNCAUGHT', details: e?.message }, 500);
   }
 }

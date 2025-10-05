@@ -13,8 +13,10 @@ import { motion, AnimatePresence } from "framer-motion";
  *  - Repeat.
  * Styling: Keeps existing gradient styling by reusing the `genai-emphasis` class.
  */
+// Hoist phrases outside component so hooks' dependency arrays remain stable
+const PHRASES = ["Generative AI", "Agentic AI", "Machine Learning", "Deep Learning"] as const;
+
 export const DynamicGenAIText: React.FC = () => {
-  const phrases = ["Generative AI", "Agentic AI", "Machine Learning", "Deep Learning"]; // extendable
   const displayDuration = 2000; // ms phrase stays fully visible
   const starDuration = 900; // ms star flight & wipe
   const blankDelay = 1000; // ms blank gap AFTER star completes before showing next phrase
@@ -29,7 +31,7 @@ export const DynamicGenAIText: React.FC = () => {
   // Measure width based on longest phrase for layout stability
   useEffect(() => {
     if (!containerRef.current) return;
-    const longest = phrases.reduce((a, b) => (a.length > b.length ? a : b));
+    const longest = PHRASES.reduce((a, b) => (a.length > b.length ? a : b));
     const temp = document.createElement("span");
     temp.style.position = "absolute";
     temp.style.visibility = "hidden";
@@ -55,12 +57,12 @@ export const DynamicGenAIText: React.FC = () => {
     }
     if (phase === "blank") {
       const t = setTimeout(() => {
-        setIndex((i) => (i + 1) % phrases.length);
+        setIndex((i) => (i + 1) % PHRASES.length);
         setPhase("display");
       }, blankDelay);
       return () => clearTimeout(t);
     }
-  }, [phase, displayDuration, starDuration, blankDelay, phrases.length]);
+  }, [phase, displayDuration, starDuration, blankDelay]);
 
   const wiping = phase === "transition" || phase === "blank"; // text hidden when wiping/blank
   const clipTarget = wiping ? "inset(0 0 0 100%)" : "inset(0 0 0 0%)";
@@ -80,7 +82,7 @@ export const DynamicGenAIText: React.FC = () => {
         transition={{ duration: clipDuration, ease: "linear" }}
         style={{ whiteSpace: "nowrap" }}
       >
-        {phrases[index]}
+  {PHRASES[index]}
       </motion.span>
 
       <AnimatePresence>
