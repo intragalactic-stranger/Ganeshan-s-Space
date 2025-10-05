@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="gradDayG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF884D"/>
+      <stop offset="65%" stop-color="#FFC845"/>
+    </linearGradient>
+    <linearGradient id="gradNightG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4A90E2"/>
+      <stop offset="65%" stop-color="#7BB3E8"/>
+    </linearGradient>
+    <radialGradient id="starDay" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFC845"/>
+      <stop offset="55%" stop-color="#FF9F56"/>
+      <stop offset="80%" stop-color="#FF9245"/>
+      <stop offset="100%" stop-color="#FF7A2E"/>
+    </radialGradient>
+    <radialGradient id="starNight" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#7BB3E8"/>
+      <stop offset="55%" stop-color="#4A90E2"/>
+      <stop offset="80%" stop-color="#6FA8E9"/>
+      <stop offset="100%" stop-color="#3F7FC7"/>
+    </radialGradient>
+  </defs>
+  <!-- Background transparent -->
+  <g id="logo" fill="none" stroke="none">
+    <!-- 4-point ninja star -->
+    <path id="star" fill="url(#starDay)" d="M64 8 L78 46 L120 64 L78 82 L64 120 L50 82 L8 64 L50 46 Z"/>
+    <!-- Central halo -->
+    <circle cx="64" cy="64" r="14" fill="rgba(255,255,255,0.35)"/>
+    <!-- Letter G -->
+    <path id="g" fill="url(#gradDayG)" d="M64 34c-17 0-30 13-30 30s13 30 30 30c12 0 22-6 27-16l-14-6c-3 6-8 9-13 9-9 0-16-7-16-17s7-17 16-17c6 0 11 3 13 8h-14v12h30c1-3 1-5 1-7 0-17-13-30-30-30z"/>
+  </g>
+</svg>

@@ -1,0 +1,38 @@
+import type { Metadata } from "next";
+
+export const siteConfig: Metadata = {
+  title: "Ganeshan A. | AI Engineer's Space",
+  description: "Building Production-Grade GenAI Solutions | Software Engineer specializing in LLMs, RAG Systems, and Cloud AI Architecture",
+  keywords: [
+    "generative-ai",
+    "genai",
+    "llm",
+    "large-language-models",
+    "rag",
+    "retrieval-augmented-generation",
+    "ai-engineer",
+    "machine-learning",
+    "deep-learning",
+    "langchain",
+    "langgraph",
+    "aws",
+    "aws-bedrock",
+    "gcp",
+    "vertex-ai",
+    "python",
+    "fastapi",
+    "pytorch",
+    "tensorflow",
+    "vector-databases",
+    "mlops",
+    "ai-portfolio",
+    "nextjs",
+    "react",
+    "typescript",
+    "tailwindcss",
+  ] as Array<string>,
+  authors: {
+    name: "Ganeshan Arumuganainar",
+  url: "https://github.com/intragalactic-stranger",
+  },
+} as const;
