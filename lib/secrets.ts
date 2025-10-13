@@ -55,14 +55,17 @@ export async function loadGeminiConfig(): Promise<GeminiConfig> {
   const now = Date.now();
   if (cache && cache.expiresAt > now) return cache.value;
 
-  // Skip AWS Secrets Manager in local dev (when no AWS credentials or NODE_ENV !== 'production')
-  const skipAWS = process.env.NODE_ENV !== "production" || !process.env.AWS_REGION;
+  // Detect if running in Amplify/AWS environment (has AWS_EXECUTION_ENV or AWS_LAMBDA_FUNCTION_NAME)
+  const isAWS = !!(process.env.AWS_EXECUTION_ENV || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.CODEBUILD_BUILD_ID);
+  
+  // Skip AWS Secrets Manager only in local dev (not AWS and not production)
+  const skipAWS = !isAWS && process.env.NODE_ENV !== "production";
 
   let jsonCfg: GeminiConfig = {};
   let apiOnly: GeminiConfig = {};
 
   if (!skipAWS) {
-    // Prefer JSON config secret, then API key secret
+    // Try to fetch from Secrets Manager
     jsonCfg = fromJsonOrPlain(await getSecretString(SECRET_NAME_JSON));
     apiOnly = fromJsonOrPlain(await getSecretString(SECRET_NAME_API));
   }
