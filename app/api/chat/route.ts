@@ -35,13 +35,18 @@ export async function POST(req: NextRequest) {
   try {
     const { apiKey, model: secretModel, systemPrompt: secretSystem } = await loadGeminiConfig();
     if (!apiKey) {
+      console.error('[chat] GEMINI_API_KEY not found in config', {
+        hasEnvKey: !!process.env.GEMINI_API_KEY,
+        hasSecretsFlag: process.env.USE_SECRETS_MANAGER,
+        nodeEnv: process.env.NODE_ENV,
+      });
       return jsonResponse(<ApiErrorBody>{
-        error: 'Missing Gemini API key (Secrets Manager)',
-        code: 'SECRET_NOT_FOUND',
+        error: 'Missing Gemini API key',
+        code: 'API_KEY_NOT_FOUND',
         details: {
-          expectedSecretNames: ['amplify/gemini/config','amplify/gemini/apiKey'],
-          envOverrides: ['SECRET_NAME_GEMINI_JSON','SECRET_NAME_GEMINI_API_KEY','AWS_REGION'],
-          hint: 'Ensure Amplify service role has secretsmanager:GetSecretValue on your secret ARN and names/region match.'
+          envVarPresent: !!process.env.GEMINI_API_KEY,
+          usingSecretsManager: process.env.USE_SECRETS_MANAGER === 'true',
+          hint: 'Set GEMINI_API_KEY in Amplify environment variables or enable USE_SECRETS_MANAGER=true with proper IAM role.'
         }
       }, 500);
     }
