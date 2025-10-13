@@ -4,6 +4,9 @@ applications:
       phases:
         preBuild:
           commands:
+            - echo "Node: $(node -v)"
+            - echo "PWD: $(pwd)"
+            - echo "Listing GEMINI related env vars (names only):" && (printenv | grep -i GEMINI || echo "NONE")
             - npm ci
         build:
           commands:

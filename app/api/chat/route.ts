@@ -35,7 +35,15 @@ export async function POST(req: NextRequest) {
   try {
     const { apiKey, model: secretModel, systemPrompt: secretSystem } = await loadGeminiConfig();
     if (!apiKey) {
-      return jsonResponse(<ApiErrorBody>{ error: 'Missing required server secret', code: 'ENV_MISSING_GEMINI_API_KEY' }, 500);
+      return jsonResponse(<ApiErrorBody>{
+        error: 'Missing Gemini API key (Secrets Manager)',
+        code: 'SECRET_NOT_FOUND',
+        details: {
+          expectedSecretNames: ['amplify/gemini/config','amplify/gemini/apiKey'],
+          envOverrides: ['SECRET_NAME_GEMINI_JSON','SECRET_NAME_GEMINI_API_KEY','AWS_REGION'],
+          hint: 'Ensure Amplify service role has secretsmanager:GetSecretValue on your secret ARN and names/region match.'
+        }
+      }, 500);
     }
     const model = secretModel || process.env.NEXT_PUBLIC_GEMINI_MODEL || 'gemini-1.5-flash-002';
     const systemPrompt = secretSystem;
