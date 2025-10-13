@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { loadGeminiConfig } from "@/lib/secrets";
 
 // Gemini (Google AI Studio) simple integration using REST fetch.
 // Environment variables required:
@@ -32,19 +33,12 @@ function jsonResponse(body: any, status = 200) {
 
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const { apiKey, model: secretModel, systemPrompt: secretSystem } = await loadGeminiConfig();
     if (!apiKey) {
       return jsonResponse(<ApiErrorBody>{ error: 'Missing required server secret', code: 'ENV_MISSING_GEMINI_API_KEY' }, 500);
     }
-
-    const model = process.env.NEXT_PUBLIC_GEMINI_MODEL || 'gemini-1.5-flash-002';
-    // Clean & normalize system prompt (strip wrapping quotes if present)
-    let rawSystem = process.env.GEMINI_SYSTEM_PROMPT;
-    if (rawSystem) rawSystem = rawSystem.trim();
-    if (rawSystem && rawSystem.startsWith('"') && rawSystem.endsWith('"')) {
-      rawSystem = rawSystem.slice(1, -1).trim();
-    }
-    const systemPrompt = rawSystem && rawSystem.length > 0 ? rawSystem : undefined;
+    const model = secretModel || process.env.NEXT_PUBLIC_GEMINI_MODEL || 'gemini-1.5-flash-002';
+    const systemPrompt = secretSystem;
 
     const body = await req.json().catch(() => ({}));
     const rawMsg = (body.message ?? '').toString();
