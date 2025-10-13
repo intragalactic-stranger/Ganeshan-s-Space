@@ -55,9 +55,17 @@ export async function loadGeminiConfig(): Promise<GeminiConfig> {
   const now = Date.now();
   if (cache && cache.expiresAt > now) return cache.value;
 
-  // Prefer JSON config secret, then API key secret
-  const jsonCfg = fromJsonOrPlain(await getSecretString(SECRET_NAME_JSON));
-  const apiOnly = fromJsonOrPlain(await getSecretString(SECRET_NAME_API));
+  // Skip AWS Secrets Manager in local dev (when no AWS credentials or NODE_ENV !== 'production')
+  const skipAWS = process.env.NODE_ENV !== "production" || !process.env.AWS_REGION;
+
+  let jsonCfg: GeminiConfig = {};
+  let apiOnly: GeminiConfig = {};
+
+  if (!skipAWS) {
+    // Prefer JSON config secret, then API key secret
+    jsonCfg = fromJsonOrPlain(await getSecretString(SECRET_NAME_JSON));
+    apiOnly = fromJsonOrPlain(await getSecretString(SECRET_NAME_API));
+  }
 
   // Fallback to environment variables for local/dev
   let rawSystem = process.env.GEMINI_SYSTEM_PROMPT;
