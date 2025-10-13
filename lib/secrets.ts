@@ -55,22 +55,19 @@ export async function loadGeminiConfig(): Promise<GeminiConfig> {
   const now = Date.now();
   if (cache && cache.expiresAt > now) return cache.value;
 
-  // Detect if running in Amplify/AWS environment (has AWS_EXECUTION_ENV or AWS_LAMBDA_FUNCTION_NAME)
-  const isAWS = !!(process.env.AWS_EXECUTION_ENV || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.CODEBUILD_BUILD_ID);
+  // Check if we should try Secrets Manager (only if explicitly enabled via env var)
+  const useSecretsManager = process.env.USE_SECRETS_MANAGER === "true";
   
-  // Skip AWS Secrets Manager only in local dev (not AWS and not production)
-  const skipAWS = !isAWS && process.env.NODE_ENV !== "production";
-
   let jsonCfg: GeminiConfig = {};
   let apiOnly: GeminiConfig = {};
 
-  if (!skipAWS) {
-    // Try to fetch from Secrets Manager
+  if (useSecretsManager) {
+    // Try to fetch from Secrets Manager (requires proper IAM role in runtime)
     jsonCfg = fromJsonOrPlain(await getSecretString(SECRET_NAME_JSON));
     apiOnly = fromJsonOrPlain(await getSecretString(SECRET_NAME_API));
   }
 
-  // Fallback to environment variables for local/dev
+  // Use environment variables (works in Amplify, local dev, and as fallback)
   let rawSystem = process.env.GEMINI_SYSTEM_PROMPT;
   if (rawSystem) rawSystem = rawSystem.trim();
   if (rawSystem && rawSystem.startsWith('"') && rawSystem.endsWith('"')) {
