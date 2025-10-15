@@ -40,11 +40,11 @@ async function getSecretString(secretId: string, errors: GeminiConfigMeta["error
     );
     return res.SecretString ?? null;
   } catch (err: any) {
-    const message = err?.message || err?.code || "Unknown error";
-    errors.push({ secret: secretId, message });
-    if (process.env.NODE_ENV !== "production") {
-      console.warn(`[secrets] Could not read ${secretId}: ${message}`);
-    }
+    const errorCode = err?.name || err?.code || 'Unknown';
+    const message = err?.message || "Unknown error";
+    errors.push({ secret: secretId, message: `${errorCode}: ${message}` });
+    // Log in all environments to help debug Amplify runtime issues
+    console.warn(`[secrets] Could not read ${secretId}: ${errorCode} - ${message}`);
     return null;
   }
 }
@@ -73,16 +73,6 @@ function normalizeSystemPrompt(raw?: string | null): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function isRunningOnAws(): boolean {
-  return Boolean(
-    process.env.AWS_EXECUTION_ENV ||
-    process.env.AWS_REGION ||
-    process.env.AWS_DEFAULT_REGION ||
-    process.env.AWS_LAMBDA_FUNCTION_NAME ||
-    process.env.CODEBUILD_BUILD_ID
-  );
-}
-
 export async function loadGeminiConfig(): Promise<GeminiConfigResult> {
   const now = Date.now();
   if (cache && cache.expiresAt > now) return cache.value;
@@ -93,16 +83,32 @@ export async function loadGeminiConfig(): Promise<GeminiConfigResult> {
   let secretJson: GeminiConfig = {};
   let secretPlain: GeminiConfig = {};
 
+  // Always attempt Secrets Manager unless explicitly disabled
+  // This ensures it works in Amplify's Lambda runtime where AWS env detection may vary
   const skipSecrets = process.env.SKIP_SECRETS_MANAGER === "true";
-  if (!skipSecrets && isRunningOnAws()) {
+  
+  if (!skipSecrets) {
+    console.log('[secrets] Attempting to load from AWS Secrets Manager...');
+    console.log('[secrets] Region:', DEFAULT_REGION);
+    console.log('[secrets] Secret names:', { json: SECRET_NAME_JSON, api: SECRET_NAME_API });
+    
     secretJson = fromJsonOrPlain(await getSecretString(SECRET_NAME_JSON, errors));
     if (secretJson.apiKey || secretJson.model || secretJson.systemPrompt) {
       source.secretJson = true;
+      console.log('[secrets] Successfully loaded from JSON secret');
     }
+    
     secretPlain = fromJsonOrPlain(await getSecretString(SECRET_NAME_API, errors));
     if (secretPlain.apiKey || secretPlain.model || secretPlain.systemPrompt) {
       source.secretPlain = true;
+      console.log('[secrets] Successfully loaded from plain API key secret');
     }
+    
+    if (errors.length > 0) {
+      console.warn('[secrets] Errors encountered:', JSON.stringify(errors, null, 2));
+    }
+  } else {
+    console.log('[secrets] Secrets Manager disabled via SKIP_SECRETS_MANAGER=true');
   }
 
   const envApiKey = process.env.GEMINI_API_KEY;
@@ -110,6 +116,7 @@ export async function loadGeminiConfig(): Promise<GeminiConfigResult> {
   const envPrompt = normalizeSystemPrompt(process.env.GEMINI_SYSTEM_PROMPT);
   if (envApiKey || envModel || envPrompt) {
     source.env = true;
+    console.log('[secrets] Found environment variables');
   }
 
   const merged: GeminiConfigResult = {
@@ -119,6 +126,13 @@ export async function loadGeminiConfig(): Promise<GeminiConfigResult> {
     source,
     errors,
   };
+
+  console.log('[secrets] Final config sources:', source);
+  console.log('[secrets] Config status:', {
+    hasApiKey: !!merged.apiKey,
+    hasModel: !!merged.model,
+    hasSystemPrompt: !!merged.systemPrompt,
+  });
 
   cache = { value: merged, expiresAt: now + TTL_MS };
   return merged;
