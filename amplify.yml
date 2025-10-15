@@ -18,3 +18,13 @@ applications:
       cache:
         paths:
           - node_modules/**/*
+    # Important: Configure environment variables for runtime (Lambda)
+    environment:
+      variables:
+        # These will be available at runtime in API routes
+        GEMINI_API_KEY: ${GEMINI_API_KEY}
+        NEXT_PUBLIC_GEMINI_MODEL: ${NEXT_PUBLIC_GEMINI_MODEL}
+        GEMINI_SYSTEM_PROMPT: ${GEMINI_SYSTEM_PROMPT}
+        AWS_REGION: us-east-1
+        # Optional: Enable Secrets Manager
+        # SKIP_SECRETS_MANAGER: "false"
