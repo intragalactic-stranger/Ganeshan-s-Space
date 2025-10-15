@@ -26,5 +26,6 @@ applications:
         NEXT_PUBLIC_GEMINI_MODEL: ${NEXT_PUBLIC_GEMINI_MODEL}
         GEMINI_SYSTEM_PROMPT: ${GEMINI_SYSTEM_PROMPT}
         AWS_REGION: us-east-1
-        # Optional: Enable Secrets Manager
-        # SKIP_SECRETS_MANAGER: "false"
+        # Skip Secrets Manager since IAM role not configured yet
+        # We're using environment variables directly (which are working!)
+        SKIP_SECRETS_MANAGER: "true"
