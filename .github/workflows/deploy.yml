@@ -24,22 +24,20 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: "npm"
-          cache-dependency-path: space-portfolio/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        working-directory: space-portfolio
         run: npm ci
 
       - name: Build
-        working-directory: space-portfolio
         run: npm run build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: space-portfolio/out
+          path: out
 
   deploy:
     needs: build
