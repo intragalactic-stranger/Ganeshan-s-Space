@@ -62,35 +62,29 @@ export const ChatRocket = () => {
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
 
-    // Try backend (will fail silently if not available yet)
     try {
-      const externalUrl = process.env.NEXT_PUBLIC_CHAT_API_URL?.trim();
-      const apiUrl = externalUrl || "/api/chat"; // fallback to internal Gemini route
-      if (apiUrl) {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 6000);
-        const res = await fetch(apiUrl, {
-          method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: userText }),
-            signal: controller.signal,
-        });
-        clearTimeout(timeout);
-        if (res.ok) {
-          const data = await res.json().catch(() => ({} as any));
-          const answer = data?.reply || data?.message || JSON.stringify(data).slice(0, 400);
-          streamBotMessage(answer || "(Empty response received)");
-        } else {
-          // Show concise status code to user only once
-          streamBotMessage(`(backend ${res.status} – falling back to echo)`);
-          fakeResponse(userText);
-        }
+      const apiUrl = process.env.NEXT_PUBLIC_CHAT_API_URL?.trim();
+      if (!apiUrl) {
+        fakeResponse(userText);
+        return;
+      }
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userText }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (res.ok) {
+        const data = await res.json().catch(() => ({} as any));
+        const answer = data?.reply || data?.message || JSON.stringify(data).slice(0, 400);
+        streamBotMessage(answer || "(Empty response received)");
       } else {
-        // No API configured -> immediate local echo fallback
         fakeResponse(userText);
       }
     } catch {
-      // Backend not ready – fall back
       fakeResponse(userText);
     } finally {
       setLoading(false);
