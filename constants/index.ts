@@ -151,10 +151,10 @@ export const CERTIFICATIONS = [
     credentialUrl: "#",
   },
   {
-    name: "IELTS Academic",
-    issuer: "British Council",
-    date: "Band 7.5/9.0 - Valid until Nov 2025",
-    image: "/certifications/ielts.png",
+    name: "AWS Certified Machine Learning Engineer Associate",
+    issuer: "Amazon Web Services",
+    date: "Valid until Dec 2027",
+    image: "/certifications/aws-cp.png",
     credentialUrl: "#",
   },
 ] as const;

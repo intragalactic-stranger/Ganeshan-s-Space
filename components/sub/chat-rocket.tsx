@@ -16,11 +16,23 @@ const uid = () => Math.random().toString(36).slice(2);
 
 export const ChatRocket = () => {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([{
-    id: uid(),
-    role: "bot",
-    content: "Hi cadet! I'm your space terminal. Ask me anything while we wire real engines...",
-  }]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("chatMessages");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // fallback if parsing fails
+        }
+      }
+    }
+    return [{
+      id: uid(),
+      role: "bot",
+      content: "Hi cadet! I'm your space terminal. Ask me anything while we wire real engines...",
+    }];
+  });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -30,6 +42,13 @@ export const ChatRocket = () => {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("chatMessages", JSON.stringify(messages));
+    }
+  }, [messages]);
 
   // Typewriter streaming effect for the last streaming bot message
   const streamBotMessage = useCallback((fullText: string) => {
@@ -95,6 +114,18 @@ export const ChatRocket = () => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
+    }
+  };
+
+  const clearChat = () => {
+    const initialMsg: ChatMessage = {
+      id: uid(),
+      role: "bot",
+      content: "Hi cadet! I'm your space terminal. Ask me anything while we wire real engines...",
+    };
+    setMessages([initialMsg]);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("chatMessages");
     }
   };
 
@@ -229,13 +260,23 @@ export const ChatRocket = () => {
                 <span className="inline-block w-2 h-2 rounded-full bg-[#4A90E2] animate-pulse" />
                 SPACE TERMINAL
               </div>
-              <button
-                onClick={() => setOpen(false)}
-                className="text-[#6d7a94] hover:text-white transition-colors"
-                aria-label="Close chat"
-              >
-                <XMarkIcon className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={clearChat}
+                  className="text-[#6d7a94] hover:text-[#ff6b6b] transition-colors text-xs px-2 py-1 rounded hover:bg-white/5"
+                  aria-label="Clear chat"
+                  title="Clear chat history"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={() => setOpen(false)}
+                  className="text-[#6d7a94] hover:text-white transition-colors"
+                  aria-label="Close chat"
+                >
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-[13px] font-mono leading-relaxed tracking-tight chat-scrollbar">
