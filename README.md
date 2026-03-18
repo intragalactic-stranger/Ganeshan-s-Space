@@ -19,3 +19,4 @@ Provide a fast, responsive, visually engaging single-page portfolio to present m
 Clone, install dependencies (npm install) and run with `npm run dev`.
 
 This repository contains only the code necessary for my personal deployment; extended guides and auxiliary documentation were intentionally removed for brevity.
+# Chat API connected to AWS Bedrock Nova 2 Lite
